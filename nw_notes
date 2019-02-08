@@ -1,0 +1,57 @@
+Data is communicated in packets.
+
+Packets can get lost between sender and reciever.
+
+Connection-based communication guarantees reliable, in-order communication.
+
+Connectionless communication has no such guarantees.
+
+Use getaddrinfo to resolve hostnames.
+    const char * hostname (can resolve via DNS)
+    const char * service (port as ASCII string)
+    const struct addrinfo * request (an input)
+    const struct addrinfo ** result (an output)
+
+// BEGIN SERVER STRUCT
+struct addrinfo request;
+
+request.ai_flags = AI_PASSIVE;
+request.ai_family = AF_INET;
+request.ai_socktype = SOCK_STREAM; // TCP
+request.ai_protocol = 0; // any protocol
+request.ai_addrlen = 0; // defines output addr
+request.ai_addr = 0; // defines output addr
+request.ai_canonname = NULL; // canonical name of machine
+request.ai_next = NULL; // pointer to next addr
+// END SERVER STRUCT
+
+// BEGIN CLIENT STRUCT
+request.ai_flags = 0; // think AI_ACTIVE
+                      // Do we need server ip addr here too? in request.ai_addr?
+everything else same as server
+// END CLIENT STRUCT
+
+// SERVER SIDE FLOW
+get info for accepting port - getaddrinfo()
+get a communication endpoint - socket()
+make port reusable - setsockopt()
+claim a port for exclusive use - bind()
+make communication enpoitn passive and set incoming connect request queue length - listen()
+accept incoming connection request - accept()
+
+
+socket(int domain, iunt type, int protocol)
+    int domain = {AF_INET, AF_INET6}
+    int type = {SOCK_STREAM, SOCK_DGRAM, SOCK_RAW}
+    int protocol = 0
+
+socket descriptors work like file descriptors, and are capable of using read(), write(), close()
+
+you also need freeaddrinfo
+
+// CLIENT SIDE FLOW
+set values in addrinfo request
+call getaddrinfo w/ server addr
+get communication endpoint
+connect to server
+start read()ing and write()ing data
