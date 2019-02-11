@@ -18,8 +18,6 @@ int main ()
         exit(1);
     }
 
-    // TODO: BIND, LISTEN, ACCEPT
-    
     struct sockaddr_un sock_path;
     memset(&sock_path, 0, sizeof(struct sockaddr_un));
     sock_path.sun_family = AF_UNIX; // man page specifies this value.
@@ -38,7 +36,9 @@ int main ()
     // BE MINDFULL!!!!
     // Since everything is a file in UNIX(tm), whatever user running this server
     // can delete any bound file sockets with rm, or some other utility.                                          
-    if (bind(sd, (struct sockaddr *)&sock_path, sizeof(struct sockaddr_un)) == -1)
+    if (bind(sd,
+            (struct sockaddr *)&sock_path, 
+             sizeof(struct sockaddr_un)) == -1)
     {
         perror("Socket bind\n");
         exit(1);
