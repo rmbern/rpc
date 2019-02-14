@@ -1,14 +1,34 @@
-#include <sys/types.h> // AF_LOCAL, SOCK_STREAM, sockaddr
+#include <sys/types.h> // AF_LOCAL, SOCK_STREAM, sockaddr, EAI_*, socklen_t
 #include <sys/socket.h> // socket, bind, accept, listen
 #include <sys/un.h> // sockaddr_un
 #include <stdio.h> // perror, printf
 #include <stdlib.h> // exit
 #include <string.h> // strncpy
 #include <unistd.h> // read
+#include <netdb.h> // getaddrinfo, freeaddrinfo
+#include "common.h" // handle_getaddr_error
 
 int main () 
 {
-    int sd = socket(AF_LOCAL, // Will use the network later
+    struct addrinfo request;
+    memset(&request, 0, sizeof(struct sockaddr));
+    request.ai_flags = AI_PASSIVE;
+    request.ai_family = AF_INET;
+    request.ai_socktype = SOCK_STREAM;
+    request.ai_protocol = 0;
+    request.ai_addrlen = 0;
+    request.ai_canonname = NULL;
+    request.ai_next = NULL;
+
+    struct addrinfo * responses;
+
+    int getaddr_result = getaddrinfo(NULL, 
+                                     "5000", 
+                                     &request,
+                                     &responses);
+    handle_getaddr_error(getaddr_result);
+
+    int sd = socket(AF_INET, 
                     SOCK_STREAM, // TCP
                     0); // Use configured reasonable defaults 
 
@@ -18,27 +38,12 @@ int main ()
         exit(1);
     }
 
-    struct sockaddr_un sock_path;
-    memset(&sock_path, 0, sizeof(struct sockaddr_un));
-    sock_path.sun_family = AF_UNIX; // man page specifies this value.
+    struct sockaddr address;
+    memset(&address, 0, sizeof(struct sockaddr));
 
-    // write "reasonable default" filehandle in process directory 
-    // very not portable :)
-    // We are also using a short name because of our cast below.
-    // struct sockaddr only has a 14 byte buffer for an addr name
-    // as opposed to the 108 byte buffer seen in struct sockaddr_un
-    if (strncpy(sock_path.sun_path, "./RPC", 6) == NULL)
-    {
-        // TODO: Write to stderr
-        printf("Error! Assignment of string for socket name failed!");
-        exit(1);
-    }
-    // BE MINDFULL!!!!
-    // Since everything is a file in UNIX(tm), whatever user running this server
-    // can delete any bound file sockets with rm, or some other utility.                                          
     if (bind(sd,
-            (struct sockaddr *)&sock_path, 
-             sizeof(struct sockaddr_un)) == -1)
+             responses->ai_addr, 
+             sizeof(struct sockaddr)) == -1)
     {
         perror("Socket bind\n");
         exit(1);
@@ -51,21 +56,23 @@ int main ()
     }
 
     // Accept one connection
-    int accepted_socket;
-    int * socklen = malloc(sizeof(int));
-    *socklen = sizeof(sock_path.sun_path);
-    accepted_socket = accept(sd, (struct sockaddr *)&sock_path, socklen);
-    if (accepted_socket < 0)
+    int sock_connection;
+    socklen_t * socklen = malloc(sizeof(socklen_t));
+    *socklen = responses->ai_addrlen;
+    //accepted_socket = accept(sd, (struct sockaddr *)&sock_path, socklen);
+    sock_connection = accept(sd, responses->ai_addr, socklen);
+    if (sock_connection < 0)
     {
         perror("Socket accept");
         exit(1);
     }
-    free(socklen);
-    
+    free(socklen); 
+    freeaddrinfo(responses);
+
     char recieved_msg[100];
     memset(recieved_msg, 0, sizeof(recieved_msg));
     
-    if (read(accepted_socket, recieved_msg, sizeof(recieved_msg)) == -1)
+    if (read(sock_connection, recieved_msg, sizeof(recieved_msg)) == -1)
     {
         perror("Socket read\n");
         exit(1);

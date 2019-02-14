@@ -4,10 +4,29 @@
 #include <unistd.h> // write
 #include <stdlib.h> // exit
 #include <stdio.h> // perror
-
+#include <netdb.h> // getaddrinfo, freeaddrinfo
+#include "common.h" // handle_getaddr_error
 int main () 
 {
-    int sd = socket(AF_LOCAL, // Will use the network later
+    struct addrinfo request;
+    memset(&request, 0, sizeof(struct sockaddr));
+    request.ai_flags = 0;
+    request.ai_family = AF_INET;
+    request.ai_socktype = SOCK_STREAM;
+    request.ai_protocol = 0;
+    request.ai_addrlen = 0;
+    request.ai_canonname = NULL;
+    request.ai_next = NULL;
+
+    struct addrinfo * responses;
+
+    int getaddr_result = getaddrinfo("localhost", 
+                                     "5000", 
+                                     &request,
+                                     &responses);
+    handle_getaddr_error(getaddr_result);
+
+    int sd = socket(AF_INET, // Will use the network later
                     SOCK_STREAM, // TCP
                     0); // Use configured reasonable defaults 
 
@@ -17,25 +36,12 @@ int main ()
         exit(1);
     }
 
-    struct sockaddr_un sock_path;
-    memset(&sock_path, 0, sizeof(struct sockaddr_un));
-    sock_path.sun_family = AF_UNIX; // man page specifies this value.
-
-    // write "reasonable default" filehandle in process directory 
-    // very not portable :)
-    // We are also using a short name because of our cast below.
-    // struct sockaddr only has a 14 byte buffer for an addr name
-    // as opposed to the 108 byte buffer seen in struct sockaddr_un
-    if (strncpy(sock_path.sun_path, "./RPC", 6) == NULL)
-    {
-        // TODO: Write to stderr
-        printf("Error! Assignment of string for socket name failed!");
-        exit(1);
-    }
+    struct sockaddr address;
+    memset(&address, 0, sizeof(struct sockaddr));
 
     if (connect(sd,
-            (struct sockaddr *)&sock_path,
-             sizeof(struct sockaddr_un)) == -1)
+                responses->ai_addr, 
+                sizeof(struct sockaddr)) == -1)
     {
         perror("Socket connect");
         exit(1);
