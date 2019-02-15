@@ -8,6 +8,39 @@
 #include <netdb.h> // getaddrinfo, freeaddrinfo
 #include "common.h" // handle_getaddr_error
 
+void server_rotate(char * rotate_me, char dir)
+{
+    // Acutal rotation done here!
+    // I am refraining from using enums because I don't know
+    // what it means to send an enum over a sock connection.
+    
+    if (dir == 'L') // left rotate
+    {
+        printf("L ROT\n");
+        for (int i = 0; rotate_me[i+1] != 0; i++)
+        {
+            rotate_me[i] = rotate_me[i] ^ rotate_me[i+1];
+            rotate_me[i+1] = rotate_me[i+1] ^ rotate_me[i];
+            rotate_me[i] = rotate_me[i] ^ rotate_me[i+1];
+        }
+    }
+    else // right rotate
+    {
+        printf("R ROT\n");
+        int l; // called l because we start with the last char of the string
+        for (l = 0; rotate_me[l+1] != 0; l++); 
+                                             // so we don't point at the null terminator
+        // l now points to the last char in rotate_me
+        
+        for (; l > 1; l--)
+        {
+            rotate_me[l] = rotate_me[l] ^ rotate_me[l-1];
+            rotate_me[l-1] = rotate_me[l-1] ^ rotate_me[l];
+            rotate_me[l] = rotate_me[l] ^ rotate_me[l-1];
+        }
+    }
+} 
+
 int main () 
 {
     struct addrinfo request;
@@ -71,11 +104,26 @@ int main ()
 
     char recieved_msg[100];
     memset(recieved_msg, 0, sizeof(recieved_msg));
-    
+
+    char direction_byte = -1;
+    if (read(sock_connection, &direction_byte, 1) == -1)
+    {
+        perror("First socket read\n");
+        exit(1);
+    } 
     if (read(sock_connection, recieved_msg, sizeof(recieved_msg)) == -1)
     {
-        perror("Socket read\n");
+        perror("Second socket read\n");
         exit(1);
     }
-    printf("%s", recieved_msg); 
+
+    server_rotate(recieved_msg, direction_byte);
+
+    if (write(sock_connection, recieved_msg, sizeof(recieved_msg)) == -1)
+    {
+        perror("Socket write\n");
+        exit(1);
+    }
+    close(sock_connection);
+    printf("%s\n", recieved_msg); 
 }

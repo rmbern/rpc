@@ -1,0 +1,6 @@
+need a rotate_left.c
+
+RPC connection for rotate function should be persistent for entirety of program execution
+
+server should handle requests asynchronously (via threads)
+	one thread per server socket
