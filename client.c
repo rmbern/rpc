@@ -5,10 +5,10 @@
 #include <stdlib.h> // exit
 #include <stdio.h> // perror
 #include <netdb.h> // getaddrinfo, freeaddrinfo
+#include <string.h> // strlen
 #include "common.h" // handle_getaddr_error
 
 typedef enum direction {LEFT,RIGHT} direction;
-
 char * rotate(char * rotate_me, direction dir)
 {
     static int sd = -2; // -1 reserved for sys error
@@ -26,7 +26,7 @@ char * rotate(char * rotate_me, direction dir)
 
         struct addrinfo * responses;
 
-        int getaddr_result = getaddrinfo("localhost", 
+        int getaddr_result = getaddrinfo("clamshell.rutgers.edu", 
                                          "5000", 
                                          &request,
                                          &responses);
@@ -68,8 +68,7 @@ char * rotate(char * rotate_me, direction dir)
         perror("Socket write");
         exit(1);
     }
-
-    if (write(sd, rotate_me, 100) == -1)
+    if (write(sd, rotate_me, strlen(rotate_me)) == -1)
     {
         perror("Socket write");
         exit(1);
@@ -83,10 +82,14 @@ char * rotate(char * rotate_me, direction dir)
         perror("Socket read");
         exit(1);
     }
-    close(sd);
+    // Since we want this connection to remain for the entirety of program
+    // execution, having the socket implicitly close on program termination
+    // is acceptable for our purposes.
+    //close(sd);
     printf("%s\n", msg_buffer); 
 }
 
 int main () {
     rotate("TESTING", RIGHT);
+    rotate("TESTING2", LEFT);
 }

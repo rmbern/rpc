@@ -1,9 +1,9 @@
 CC=gcc
-CFLAGS=-g
+CFLAGS=-g -lpthread
 all:
-	$(CC) $(CFLAGS) -o client client.c common.c	
-	$(CC) $(CFLAGS) -o server server.c common.c	
+	$(CC) -o client client.c common.c	$(CFLAGS)
+	$(CC) -o server server.c common.c	$(CFLAGS)
 server:
-	$(CC) $(CFLAGS) -o server server.c common.c	
+	$(CC) -o server server.c common.c	$(CFLAGS)
 client:
-	$(CC) $(CFLAGS) -o client client.c common.c	
+	$(CC) -o client client.c common.c	$(CFLAGS)
