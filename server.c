@@ -11,10 +11,8 @@
                      // pthread_exit, pthread_self
 #include "common.h" // handle_getaddr_error
 
-void server_rotate(char * rotate_me, char dir)
+int server_rotate(char * rotate_me, char dir)
 {
-    // TODO: Error handling
-
     // Acutal rotation done here!
     // I am refraining from using enums because I don't know
     // what it means to send an enum over a sock connection.
@@ -27,8 +25,9 @@ void server_rotate(char * rotate_me, char dir)
             rotate_me[i+1] = rotate_me[i+1] ^ rotate_me[i];
             rotate_me[i] = rotate_me[i] ^ rotate_me[i+1];
         }
+        return 0;
     }
-    else // right rotate
+    else if (dir == 'R')// right rotate
     {
         int l; // called l because we start with the last char of the string
         for (l = 0; rotate_me[l+1] != 0; l++); 
@@ -40,6 +39,11 @@ void server_rotate(char * rotate_me, char dir)
             rotate_me[l-1] = rotate_me[l-1] ^ rotate_me[l];
             rotate_me[l] = rotate_me[l] ^ rotate_me[l-1];
         }
+        return 0;
+    }
+    else // Bad character recieved
+    {
+        return -1;
     }
 }
 
@@ -51,7 +55,6 @@ void * connection_thread(void * args)
     free(args); 
 
     char recieved_msg[100];
-    // TODO: SANITIZE INPUTS AND CLOSE ON TIMEOUT
     while(1)
     {
         memset(recieved_msg, 0, sizeof(recieved_msg));
@@ -67,6 +70,18 @@ void * connection_thread(void * args)
             perror("First socket read\n");
             exit(1);
         } 
+        printf("%c\n", direction_byte);
+        if (direction_byte != 'L' && direction_byte != 'R')
+        {
+            fprintf(stderr, "Bad first value from client. Alerting client, and closing thread\n");
+            char byte = -1;
+            if (write(sd, &byte, 1) < 0)
+            {
+                perror("Socket write: bad direction value\n");
+                exit(1);
+            }
+            break; // Go to thread cleanup
+        }
 
         result = read(sd, recieved_msg, sizeof(recieved_msg));
         if (result == 0)
@@ -80,8 +95,26 @@ void * connection_thread(void * args)
             perror("Second socket read\n");
             exit(1);
         }
+        // We should catch bad rotation values before getting here,
+        // but better safe than sorry!
+        if (server_rotate(recieved_msg, direction_byte) != 0)
+        {
+            fprintf(stderr, "Tried to rotate in an invalid direction. Alerting client, and closing thread\n");
+            char byte = -2;
+            if (write(sd, &byte, 1) < 0)
+            {
+                perror("Socket write: bad direction value\n");
+                exit(1);
+            }
+        }
 
-        server_rotate(recieved_msg, direction_byte);
+        // notify client that there were no errors. 
+        char byte = 0;
+        if (write(sd, &byte, 1) < 0)
+        {
+            perror("Socket write\n");
+            exit(1);
+        }
 
         if (write(sd, recieved_msg, sizeof(recieved_msg)) < 0)
         {

@@ -3,7 +3,7 @@
 #include <sys/un.h> // sockaddr_un
 #include <unistd.h> // write
 #include <stdlib.h> // exit
-#include <stdio.h> // perror
+#include <stdio.h> // perror, printf, fprintf
 #include <netdb.h> // getaddrinfo, freeaddrinfo
 #include <string.h> // strlen
 #include "common.h" // handle_getaddr_error
@@ -63,6 +63,16 @@ char * rotate(char * rotate_me, direction dir)
     {
         direction_byte = 'R';
     }
+
+    // To test sending bad data to the client, we
+    // have directly modified direction_byte here,
+    // and compiled/executed to check error handling.
+    //
+    // Similar testing can be done on the server end
+    // with nc/socat, but it would be exceptionally
+    // tricky to attempt this the other way around on the client.
+    // direction_byte = 55;
+
     if (write(sd, &direction_byte, 1) == -1)
     {
         perror("Socket write");
@@ -71,6 +81,18 @@ char * rotate(char * rotate_me, direction dir)
     if (write(sd, rotate_me, strlen(rotate_me)) == -1)
     {
         perror("Socket write");
+        exit(1);
+    }
+    
+    char err_buff = -1;
+    if (read(sd, &err_buff, 1) == -1)
+    {
+        perror("Socket read");
+        exit(1);
+    }
+    if (err_buff != 0)
+    {
+        fprintf(stderr, "Recieved error from server. Exiting.\n");
         exit(1);
     }
 
@@ -82,14 +104,17 @@ char * rotate(char * rotate_me, direction dir)
         perror("Socket read");
         exit(1);
     }
+
+    printf("%s\n", msg_buffer); 
+
     // Since we want this connection to remain for the entirety of program
     // execution, having the socket implicitly close on program termination
     // is acceptable for our purposes.
-    //close(sd);
-    printf("%s\n", msg_buffer); 
+    
+    // (The alternative requires leaking our sd out to main)
 }
 
 int main () {
-    rotate("TESTING", RIGHT);
-    rotate("TESTING2", LEFT);
+    rotate("TESTING RIGHT ROT", RIGHT);
+    rotate("TESTING LEFT ROT", LEFT);
 }
