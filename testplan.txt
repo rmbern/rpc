@@ -1,0 +1,11 @@
+Run make.
+
+On clamshell, run ./server
+
+On crabshell, run ./client
+
+The server and the client will print the rotated strings the client sends to
+the server.
+
+The client will terminate automatically. The server can be terminated with a
+SIGINT.
