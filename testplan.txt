@@ -1,0 +1,8 @@
+Run make.
+
+On clamshell, run ./server
+
+On crabshell, run ./client
+
+The server and the client will print the rotated strings the client sends to
+the server.
